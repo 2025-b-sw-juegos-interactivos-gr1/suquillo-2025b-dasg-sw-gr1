@@ -6,8 +6,9 @@ const engine = new BABYLON.Engine(canvas, true);
 
 // Variables globales del HUD
 let pollenCollected = 0;
-let totalPollen = 25; // Total de polen a recolectar (5 grupos × 5 polen cada uno)
+let totalPollen = 5; // Total de polen a recolectar
 let score = 0;
+let gameState = "playing"; // "playing", "victory"
 
 // Función para actualizar el HUD
 function updateHUD() {
@@ -17,28 +18,54 @@ function updateHUD() {
   
   // Actualizar barra de progreso
   const progress = totalPollen > 0 ? (pollenCollected / totalPollen) * 100 : 0;
-  document.getElementById("progressBar").style.width = progress + "%";
+  const progressBar = document.getElementById("progressBar");
+  progressBar.style.width = progress + "%";
+  progressBar.textContent = Math.round(progress) + "%";
 }
 
-// Función para mostrar mensaje temporal
+// Función para mostrar mensaje temporal - VERSIÓN CORREGIDA
 function showMessage(text, duration = 2000) {
   const msgEl = document.getElementById("gameMessage");
-  console.log("Mostrando mensaje:", text);
   
-  // Forzar estilos directamente
-  msgEl.style.display = "block";
-  msgEl.style.position = "fixed";
-  msgEl.style.zIndex = "999999";
-  msgEl.style.top = "50%";
-  msgEl.style.left = "50%";
-  msgEl.style.transform = "translate(-50%, -50%)";
+  if (!msgEl) {
+    console.error("❌ ERROR: No se encontró el elemento gameMessage");
+    return;
+  }
   
+  console.log("📢 Mostrando mensaje:", text);
+  
+  // Limpiar cualquier timeout anterior
+  if (msgEl.hideTimeout) {
+    clearTimeout(msgEl.hideTimeout);
+  }
+  
+  // Mostrar mensaje usando clase CSS
   msgEl.textContent = text;
-  msgEl.style.opacity = "1";
+  msgEl.classList.add("show");
   
-  setTimeout(() => {
-    msgEl.style.opacity = "0";
+  console.log("✅ Mensaje visible. Estado:", {
+    hasShowClass: msgEl.classList.contains("show"),
+    opacity: window.getComputedStyle(msgEl).opacity,
+    visibility: window.getComputedStyle(msgEl).visibility
+  });
+  
+  // Ocultar después del tiempo especificado
+  msgEl.hideTimeout = setTimeout(() => {
+    msgEl.classList.remove("show");
+    console.log("⏰ Mensaje ocultado");
   }, duration);
+}
+
+// Función para mostrar pantalla de victoria
+function showVictoryScreen() {
+  const victoryScreen = document.getElementById("victoryScreen");
+  const finalScoreEl = document.getElementById("finalScore");
+  
+  if (victoryScreen && finalScoreEl) {
+    finalScoreEl.textContent = score;
+    victoryScreen.classList.add("show");
+    gameState = "victory";
+  }
 }
 
 // Función para crear la escena
@@ -64,9 +91,9 @@ const createScene = () => {
   ground.checkCollisions = false; // Desactivar colisión con suelo (la abeja vuela)
 
   // --- SKYBOX (adaptado al tamaño del suelo) ---
-  const SKYBOX_WIDTH = GROUND_WIDTH * 1;  // 240
-  const SKYBOX_DEPTH = GROUND_HEIGHT * 1; // 480
-  const SKYBOX_HEIGHT = 150; // Altura suficiente para el área de juego
+  const SKYBOX_WIDTH = GROUND_WIDTH * 1;
+  const SKYBOX_DEPTH = GROUND_HEIGHT * 1;
+  const SKYBOX_HEIGHT = 150;
   
   const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { 
     width: SKYBOX_WIDTH, 
@@ -85,7 +112,7 @@ const createScene = () => {
   skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
   skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
   skybox.material = skyboxMaterial;
-  skybox.position.y = SKYBOX_HEIGHT / 2.2; // Posicionar para que el borde inferior esté en y=0 (nivel del suelo)
+  skybox.position.y = SKYBOX_HEIGHT / 2.2;
 
   // === CÁMARA SEGUIDORA ===
   const camera = new BABYLON.FollowCamera("FollowCamera", new BABYLON.Vector3(0, 10, -20), scene);
@@ -104,55 +131,6 @@ const createScene = () => {
   // === LUZ ===
   const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
   light.intensity = 0.8;
-
-  // === MÚSICA DE FONDO ===
-  let backgroundMusic = null;
-  let pickupSound = null;
-  let deliverySound = null;
-  let soundsLoaded = false;
-
-  // Función para iniciar sonidos con interacción del usuario
-  const initSounds = () => {
-    if (soundsLoaded) return;
-    
-    backgroundMusic = new BABYLON.Sound(
-      "backgroundMusic",
-      "https://playground.babylonjs.com/sounds/backgroundMusic.mp3",
-      scene,
-      () => {
-        console.log("Música de fondo cargada");
-        backgroundMusic.play();
-      },
-      {
-        loop: true,
-        autoplay: false,
-        volume: 0.3
-      }
-    );
-
-    pickupSound = new BABYLON.Sound(
-      "pickupSound",
-      "./assets/sounds/bounce.wav",
-      scene,
-      () => console.log("Sonido de recolección cargado"),
-      { volume: 0.8 }
-    );
-
-    deliverySound = new BABYLON.Sound(
-      "deliverySound",
-      "https://playground.babylonjs.com/sounds/Woop_zap.mp3",
-      scene,
-      () => console.log("Sonido de entrega cargado"),
-      { volume: 0.8 }
-    );
-
-    soundsLoaded = true;
-    console.log("Sonidos iniciados - ¡Disfruta el juego!");
-  };
-
-  // Iniciar sonidos con la primera tecla presionada
-  window.addEventListener("keydown", initSounds, { once: true });
-  canvas.addEventListener("click", initSounds, { once: true });
 
   // Variables de juego
   const pollenSpheres = [];
@@ -175,10 +153,10 @@ const createScene = () => {
         const rootMesh = meshes[0];
         rootMesh.position = new BABYLON.Vector3(0, 0, 0);
         rootMesh.scaling = new BABYLON.Vector3(4, 4, 4);
-        // Activar colisiones para los árboles
         meshes.forEach(m => {
           m.checkCollisions = true;
         });
+        console.log("🌲 Árboles cargados");
       }
     }
   );
@@ -194,10 +172,10 @@ const createScene = () => {
         const rootMesh = meshes[0];
         rootMesh.position = new BABYLON.Vector3(80, 0, -80);
         rootMesh.scaling = new BABYLON.Vector3(7, 7, 7);
-        // Desactivar colisiones para el entorno (geometría compleja que atrapa al jugador)
         meshes.forEach(m => {
           m.checkCollisions = false;
         });
+        console.log("🏞️ Entorno cargado");
       }
     }
   );
@@ -219,10 +197,7 @@ const createScene = () => {
       bee1.scaling.set(2, 2, 2);
       bee1.position.set(75, 20, -120);
 
-      // Posición de los árboles para que las abejas miren hacia allí
       const treesPosition = new BABYLON.Vector3(0, 0, 0);
-      
-      // Hacer que la primera abeja mire hacia los árboles
       const directionToBee1 = treesPosition.subtract(bee1.position);
       bee1.rotation.y = Math.atan2(directionToBee1.x, directionToBee1.z);
 
@@ -243,11 +218,12 @@ const createScene = () => {
         const c = bee1.clone("bee_npc_" + idx, null);
         if (c) {
           c.position = pos.clone();
-          // Hacer que cada clon mire hacia los árboles
           const directionToTrees = treesPosition.subtract(c.position);
           c.rotation.y = Math.atan2(directionToTrees.x, directionToTrees.z);
         }
       });
+      
+      console.log("🐝 Abejas NPC cargadas");
     }
   );
 
@@ -269,8 +245,8 @@ const createScene = () => {
 
       // ACTIVAR COLISIONES PARA EL JUGADOR
       playerBee.checkCollisions = true;
-      playerBee.ellipsoid = new BABYLON.Vector3(2, 2, 2); // Cápsula de colisión más grande para evitar quedar atrapada
-      playerBee.ellipsoidOffset = new BABYLON.Vector3(0, 0, 0); // Centrar elipsoide
+      playerBee.ellipsoid = new BABYLON.Vector3(1, 1, 1); // Reducido para mejor manejo
+      playerBee.ellipsoidOffset = new BABYLON.Vector3(0, 0, 0);
 
       if (scene.skeletons.length > 0) {
         try {
@@ -279,6 +255,9 @@ const createScene = () => {
       }
 
       playerBee.isPickable = false;
+      
+      console.log("✅ Abeja jugador cargada");
+      showMessage("¡Bienvenid@! Recolecta polen de las flores doradas 🌼", 3000);
     }
   );
 
@@ -290,7 +269,7 @@ const createScene = () => {
     const rope = BABYLON.MeshBuilder.CreateCylinder("rope", { height: 3, diameter: 0.2 }, scene);
     rope.position.y = 0.5;
     rope.parent = hiveContainer;
-    rope.checkCollisions = true; // Colisión con cuerda
+    rope.checkCollisions = true;
     const ropeMat = new BABYLON.StandardMaterial("ropeMat", scene);
     ropeMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
     rope.material = ropeMat;
@@ -343,7 +322,7 @@ const createScene = () => {
     tunnelMat.diffuseColor = new BABYLON.Color3(0.1, 0.05, 0);
     tunnelMat.emissiveColor = new BABYLON.Color3(0.05, 0.02, 0);
     entranceTunnel.material = tunnelMat;
-    entranceTunnel.checkCollisions = false; // No bloquear entrada
+    entranceTunnel.checkCollisions = false;
     entranceTunnel.isPickable = false;
 
     deliveryZones.push(entranceTunnel);
@@ -514,26 +493,26 @@ const createScene = () => {
 
   // --- CARGAR FLORES Y POLEN ---
   const flowerPositions = [
-    new BABYLON.Vector3(-90, 0, 90), //0
-    new BABYLON.Vector3(-90, 0, 30), //1
-    new BABYLON.Vector3(-90, 0, -30), //2
-    new BABYLON.Vector3(-90, 0, -90), //3
-    new BABYLON.Vector3(-55, 0, 90), //4
-    new BABYLON.Vector3(-55, 0, 30), //5
-    new BABYLON.Vector3(-55, 0, -30), //6
-    new BABYLON.Vector3(-55, 0, -90), //7      
-    new BABYLON.Vector3(-10, 0, 90), //8
-    new BABYLON.Vector3(-10, 0, 30), //9
-    new BABYLON.Vector3(-10, 0, -30), //10
-    new BABYLON.Vector3(-10, 0, -90), //11
-    new BABYLON.Vector3(35, 0, 90), //12
-    new BABYLON.Vector3(35, 0, 30), //13
-    new BABYLON.Vector3(35, 0, -30), //14
-    new BABYLON.Vector3(35, 0, -90), //15
-    new BABYLON.Vector3(70, 0, 90), //16
-    new BABYLON.Vector3(70, 0, 30), //17
-    new BABYLON.Vector3(70, 0, -30), //18
-    new BABYLON.Vector3(70, 0, -90) //19
+    new BABYLON.Vector3(-90, 0, 90),
+    new BABYLON.Vector3(-90, 0, 30),
+    new BABYLON.Vector3(-90, 0, -30),
+    new BABYLON.Vector3(-90, 0, -90),
+    new BABYLON.Vector3(-55, 0, 90),
+    new BABYLON.Vector3(-55, 0, 30),
+    new BABYLON.Vector3(-55, 0, -30),
+    new BABYLON.Vector3(-55, 0, -90),
+    new BABYLON.Vector3(-10, 0, 90),
+    new BABYLON.Vector3(-10, 0, 30),
+    new BABYLON.Vector3(-10, 0, -30),
+    new BABYLON.Vector3(-10, 0, -90),
+    new BABYLON.Vector3(35, 0, 90),
+    new BABYLON.Vector3(35, 0, 30),
+    new BABYLON.Vector3(35, 0, -30),
+    new BABYLON.Vector3(35, 0, -90),
+    new BABYLON.Vector3(70, 0, 90),
+    new BABYLON.Vector3(70, 0, 30),
+    new BABYLON.Vector3(70, 0, -30),
+    new BABYLON.Vector3(70, 0, -90)
   ];
 
   // Posiciones fijas para el polen (5 posiciones específicas)
@@ -575,7 +554,7 @@ const createScene = () => {
         }
       });
 
-      // Sistema de partículas brillantes alrededor del polen
+      // Sistema de partículas brillantes
       const particleSystem = new BABYLON.ParticleSystem(`pollenParticles_${groupIndex}_${i}`, 100, scene);
       particleSystem.particleTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/flare.png", scene);
       
@@ -626,7 +605,6 @@ const createScene = () => {
           rootMesh.position = position.clone();
           rootMesh.scaling = new BABYLON.Vector3(5, 5, 5);
           
-          // Activar colisiones en flores
           meshes.forEach(m => {
             m.checkCollisions = true;
           });
@@ -654,24 +632,25 @@ const createScene = () => {
     })
   );
 
-  const PLAYER_SPEED = 0.4; // Velocidad reducida para mejor control y evitar quedar atrapada
+  const PLAYER_SPEED = 0.4;
 
   scene.onBeforeRenderObservable.add(() => {
-    if (!playerBee) return;
+    if (!playerBee || gameState !== "playing") return;
 
     const rotY = playerBee.rotation ? playerBee.rotation.y : 0;
     const forwardDir = new BABYLON.Vector3(Math.sin(rotY), 0, Math.cos(rotY));
-    const rightDir = new BABYLON.Vector3(Math.cos(rotY), 0, -Math.sin(rotY));
 
-    // Vector de movimiento acumulado
     let movement = BABYLON.Vector3.Zero();
+    let isMoving = false;
 
     // Movimiento horizontal
     if (inputMap["w"] || inputMap["arrowup"]) {
-      movement.addInPlace(forwardDir.scale(PLAYER_SPEED));
+      movement.addInPlace(forwardDir);
+      isMoving = true;
     }
     if (inputMap["s"] || inputMap["arrowdown"]) {
-      movement.addInPlace(forwardDir.scale(-PLAYER_SPEED));
+      movement.subtractInPlace(forwardDir);
+      isMoving = true;
     }
     
     // Rotación
@@ -683,28 +662,30 @@ const createScene = () => {
     }
 
     // Movimiento vertical
-    const verticalSpeed = 0.3;
+    const verticalSpeed = 1;
     if (inputMap["q"]) {
       movement.y += verticalSpeed;
+      isMoving = true;
     } else if (inputMap["e"]) {
       movement.y -= verticalSpeed;
+      isMoving = true;
     }
 
-    // Aplicar movimiento con colisiones en un solo paso
-    if (movement.length() > 0) {
-      playerBee.moveWithCollisions(movement.scale(scene.getAnimationRatio()));
+    // Normalizar y aplicar movimiento
+    if (isMoving && movement.length() > 0) {
+      movement.normalize();
+      playerBee.moveWithCollisions(movement.scale(PLAYER_SPEED * scene.getAnimationRatio()));
     }
 
     // Inclinación visual
-    if (inputMap["w"] || inputMap["s"]) {
-      playerBee.rotation.x = (inputMap["s"] ? 0.15 : -0.12);
-    } else {
-      playerBee.rotation.x *= 0.9;
-    }
+    const targetTilt = inputMap["w"] ? -0.12 : (inputMap["s"] ? 0.15 : 0);
+    playerBee.rotation.x += (targetTilt - playerBee.rotation.x) * 0.1;
 
     // Límites del mapa
-    playerBee.position.x = Math.max(-95, Math.min(95, playerBee.position.x));
-    playerBee.position.z = Math.max(-195, Math.min(195, playerBee.position.z));
+    const maxX = GROUND_WIDTH / 2 - 5;
+    const maxZ = GROUND_HEIGHT / 2 - 5;
+    playerBee.position.x = Math.max(-maxX, Math.min(maxX, playerBee.position.x));
+    playerBee.position.z = Math.max(-maxZ, Math.min(maxZ, playerBee.position.z));
     playerBee.position.y = Math.max(1.5, Math.min(60, playerBee.position.y));
   });
 
@@ -712,28 +693,82 @@ const createScene = () => {
   window.addEventListener("keydown", (evt) => {
     const key = evt.key.toLowerCase();
     if (key === " ") {
-      evt.preventDefault(); // Evitar scroll
-      if (!hasPollen) {
-        attemptPickup();
-      } else {
+      evt.preventDefault();
+      if (gameState !== "playing") return;
+      
+      // NUEVA LÓGICA: Detectar qué está cerca (polen o colmena) y actuar en consecuencia
+      const nearPollen = checkNearPollen();
+      const nearDeliveryZone = checkNearDeliveryZone();
+      
+      // Si está cerca de una zona de entrega
+      if (nearDeliveryZone) {
         attemptDelivery();
+      }
+      // Si está cerca de polen
+      else if (nearPollen) {
+        attemptPickup();
+      }
+      // Si no está cerca de nada
+      else {
+        console.log("⚠️ No hay polen ni colmena cerca");
+        showMessage("Busca las esferas doradas de polen 🌼 o las colmenas verdes 🏠", 2500);
       }
     }
   });
 
+  // Función auxiliar para verificar si hay polen cerca
+  function checkNearPollen() {
+    if (!playerBee) return false;
+    
+    for (let i = 0; i < pollenSpheres.length; i++) {
+      const p = pollenSpheres[i];
+      if (!p || p.isDisposed()) continue;
+      
+      const dist = BABYLON.Vector3.Distance(playerBee.position, p.getAbsolutePosition());
+      if (dist <= PICKUP_DISTANCE) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Función auxiliar para verificar si hay zona de entrega cerca
+  function checkNearDeliveryZone() {
+    if (!playerBee) return false;
+    
+    for (let zone of deliveryZones) {
+      if (!zone) continue;
+      
+      const zonePos = zone.getAbsolutePosition ? zone.getAbsolutePosition() : zone.position;
+      const dist = BABYLON.Vector3.Distance(playerBee.position, zonePos);
+      
+      if (dist <= DELIVERY_DISTANCE) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function attemptPickup() {
     if (!playerBee) return;
+    
+    // VERIFICACIÓN: Si ya tiene polen, mostrar mensaje y salir
     if (hasPollen) {
+      console.log("⚠️ Intentando recoger polen pero ya tiene uno");
       showMessage("¡Ya tienes un polen! No puedes recoger otro hasta entregarlo 🐝", 3000);
       return;
     }
 
+    // Buscar polen cercano
     for (let i = 0; i < pollenSpheres.length; i++) {
       const p = pollenSpheres[i];
       if (!p || p.isDisposed()) continue;
 
       const dist = BABYLON.Vector3.Distance(playerBee.position, p.getAbsolutePosition());
+      
       if (dist <= PICKUP_DISTANCE) {
+        console.log("✅ Polen encontrado a distancia:", dist);
+        
         hasPollen = true;
         currentPollen = p;
 
@@ -742,25 +777,36 @@ const createScene = () => {
         p.position = new BABYLON.Vector3(0, 0.6, 1);
         p.scaling = new BABYLON.Vector3(0.7, 0.7, 0.7);
 
-        if (pickupSound) pickupSound.play();
-        showMessage("¡Polen recolectado! 🌼");
+        showMessage("¡Polen recolectado! 🌼", 2000);
         return;
       }
     }
+    
+    // Si llega aquí, no hay polen cerca (no debería pasar con la nueva lógica)
+    console.log("⚠️ No hay polen cerca. Distancia mínima:", PICKUP_DISTANCE);
   }
 
   function attemptDelivery() {
     if (!playerBee) return;
-    if (!currentPollen) {
-      showMessage("No puedes entregar polen porque aún no lo has recogido 🤷", 3000);
+    
+    // VERIFICACIÓN: Si no tiene polen, mostrar mensaje y salir
+    if (!hasPollen || !currentPollen) {
+      console.log("⚠️ Intentando entregar polen pero no tiene ninguno");
+      showMessage("¡No tienes polen para entregar! Busca las flores doradas 🌼", 3000);
       return;
     }
 
+    // Buscar zona de entrega cercana
     for (let zone of deliveryZones) {
       if (!zone) continue;
-      const zonePos = (zone.getAbsolutePosition) ? zone.getAbsolutePosition() : zone.position;
+      
+      const zonePos = zone.getAbsolutePosition ? zone.getAbsolutePosition() : zone.position;
       const dist = BABYLON.Vector3.Distance(playerBee.position, zonePos);
+      
       if (dist <= DELIVERY_DISTANCE) {
+        console.log("✅ Zona de entrega encontrada a distancia:", dist);
+        
+        // Entregar polen
         currentPollen.setParent(null);
         currentPollen.position = zonePos.add(new BABYLON.Vector3(0, 0.4, 0));
 
@@ -772,23 +818,32 @@ const createScene = () => {
         score += 10;
         updateHUD();
 
-        // Efecto de partículas al entregar
+        // Efecto de partículas
         createDeliveryParticles(scene, zonePos);
 
-        if (deliverySound) deliverySound.play();
         showMessage("¡Polen entregado! +10 puntos 🍯", 1500);
 
+        // Resetear estado
         hasPollen = false;
         currentPollen = null;
 
         // Verificar victoria
         if (pollenCollected === totalPollen) {
-          showMessage("🎉 ¡MISIÓN COMPLETADA! ¡Toda la colmena tiene polen! 🎉", 5000);
+          setTimeout(() => {
+            showMessage("🎉 ¡MISIÓN COMPLETADA! 🎉", 3000);
+            setTimeout(() => {
+              showVictoryScreen();
+            }, 3500);
+          }, 1000);
         }
 
         return;
       }
     }
+    
+    // Si llega aquí, no hay zona de entrega cerca (no debería pasar con la nueva lógica)
+    console.log("⚠️ No hay zona de entrega cerca. Distancia mínima:", DELIVERY_DISTANCE);
+    showMessage("¡Acércate más a la colmena! 🏠", 2000);
   }
 
   // --- SISTEMA DE PARTÍCULAS PARA ENTREGA ---
