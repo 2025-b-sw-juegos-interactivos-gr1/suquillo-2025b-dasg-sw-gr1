@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MGS2 Vertical Slice - Infiltración Táctica</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100vh;
+            display: block;
+            outline: none;
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Estado de Alerta */
+        #alertStatus {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        #alertStatus.alert {
+            background: rgba(150, 0, 0, 0.9);
+            border-color: #ff0000;
+            color: #ff0000;
+            animation: pulse 0.5s infinite;
+        }
+
+        #alertStatus.evasion {
+            background: rgba(150, 100, 0, 0.9);
+            border-color: #ffaa00;
+            color: #ffaa00;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Instrucciones */
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border: 1px solid #00ff00;
+            max-width: 300px;
+        }
+
+        #instructions h3 {
+            margin-bottom: 10px;
+            color: #00ff00;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+        }
+
+        #instructions ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        #instructions li {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+
+        /* Objetivo */
+        #objective {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border: 2px solid #00ff00;
+            max-width: 300px;
+        }
+
+        #objective h3 {
+            margin-bottom: 10px;
+            color: #ffaa00;
+        }
+
+        /* Mensaje de victoria/derrota */
+        #gameMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border: 3px solid #00ff00;
+            text-align: center;
+            display: none;
+            min-width: 400px;
+        }
+
+        #gameMessage h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        #gameMessage.success {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        #gameMessage.failure {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+
+        #gameMessage button {
+            margin-top: 20px;
+            padding: 10px 30px;
+            background: transparent;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            pointer-events: all;
+        }
+
+        #gameMessage button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+
+        /* Radar */
+        #radar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 50%;
+        }
+
+        #radarCanvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="hud">
+        <div id="alertStatus">INFILTRACIÓN</div>
+        
+        <div id="objective">
+            <h3>MISIÓN</h3>
+            <p>Infiltrarse en la sala de guardia sin ser detectado.</p>
+            <p style="margin-top: 10px; color: #ffaa00;">Usa las sombras para ocultarte.</p>
+        </div>
+
+        <div id="instructions">
+            <h3>CONTROLES</h3>
+            <ul>
+                <li>▲ W,A,S,D - Movimiento</li>
+                <li>▲ SHIFT - Correr</li>
+                <li>▲ CTRL - Agacharse</li>
+                <li>▲ Mouse - Mirar alrededor</li>
+                <li>▲ ESC - Reiniciar</li>
+            </ul>
+        </div>
+
+        <div id="radar">
+            <canvas id="radarCanvas"></canvas>
+        </div>
+
+        <div id="gameMessage">
+            <h2 id="messageTitle">MISIÓN COMPLETADA</h2>
+            <p id="messageText"></p>
+            <button onclick="location.reload()">REINICIAR</button>
+        </div>
+    </div>
+
+    <!-- Scripts del juego -->
+    <script src="src/StealthSystem.js"></script>
+    <script src="src/EnemyAI.js"></script>
+    <script src="src/PlayerController.js"></script>
+    <script src="src/main.js"></script>
+</body>
+</html>

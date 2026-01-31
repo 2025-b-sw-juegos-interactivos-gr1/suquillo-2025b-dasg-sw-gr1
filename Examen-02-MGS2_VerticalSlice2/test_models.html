@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Modelos GLB</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100vh;
+            display: block;
+            outline: none;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 2px solid #00ff00;
+            max-width: 400px;
+        }
+
+        #info h2 {
+            margin-bottom: 15px;
+            color: #ffaa00;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #00ff00;
+            background: rgba(0, 50, 0, 0.3);
+        }
+
+        .status.loading {
+            border-left-color: #ffaa00;
+            background: rgba(50, 50, 0, 0.3);
+        }
+
+        .status.error {
+            border-left-color: #ff0000;
+            background: rgba(50, 0, 0, 0.3);
+        }
+
+        .controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #00ff00;
+        }
+
+        .controls p {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: transparent;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="info">
+        <h2>🧪 Test de Modelos GLB</h2>
+        
+        <div id="playerStatus" class="status loading">
+            <strong>Jugador:</strong> Cargando...
+        </div>
+        
+        <div id="enemyStatus" class="status loading">
+            <strong>Enemigo:</strong> Cargando...
+        </div>
+
+        <div class="controls">
+            <p><strong>Controles:</strong></p>
+            <p>• Mouse: Rotar cámara</p>
+            <p>• Scroll: Zoom</p>
+            <button onclick="location.href='index.html'">Volver al Juego</button>
+        </div>
+    </div>
+
+    <script>
+        class ModelTester {
+            constructor() {
+                this.canvas = document.getElementById('renderCanvas');
+                this.engine = new BABYLON.Engine(this.canvas, true);
+                this.scene = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.createScene();
+                this.setupLighting();
+                this.loadModels();
+                
+                this.engine.runRenderLoop(() => {
+                    this.scene.render();
+                });
+
+                window.addEventListener('resize', () => {
+                    this.engine.resize();
+                });
+            }
+
+            createScene() {
+                this.scene = new BABYLON.Scene(this.engine);
+                this.scene.clearColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+
+                // Cámara
+                const camera = new BABYLON.ArcRotateCamera(
+                    "camera",
+                    -Math.PI / 2,
+                    Math.PI / 3,
+                    8,
+                    new BABYLON.Vector3(0, 1, 0),
+                    this.scene
+                );
+                camera.attachControl(this.canvas, true);
+                camera.lowerRadiusLimit = 3;
+                camera.upperRadiusLimit = 20;
+
+                // Suelo
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {
+                    width: 10,
+                    height: 10
+                }, this.scene);
+
+                const groundMat = new BABYLON.StandardMaterial("groundMat", this.scene);
+                groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35);
+                groundMat.specularColor = new BABYLON.Color3(0, 0, 0);
+                ground.material = groundMat;
+
+                // Grid helper
+                ground.material.wireframe = true;
+                ground.material.alpha = 0.3;
+            }
+
+            setupLighting() {
+                // Luz ambiental
+                const ambient = new BABYLON.HemisphericLight(
+                    "ambient",
+                    new BABYLON.Vector3(0, 1, 0),
+                    this.scene
+                );
+                ambient.intensity = 0.7;
+
+                // Luz direccional
+                const light = new BABYLON.DirectionalLight(
+                    "light",
+                    new BABYLON.Vector3(-1, -2, -1),
+                    this.scene
+                );
+                light.intensity = 0.5;
+            }
+
+            loadModels() {
+                // Cargar jugador (izquierda)
+                this.loadModel(
+                    "assets/models/player.glb",
+                    new BABYLON.Vector3(-2, 0, 0),
+                    "playerStatus",
+                    "Jugador"
+                );
+
+                // Cargar enemigo (derecha)
+                this.loadModel(
+                    "assets/models/enemy.glb",
+                    new BABYLON.Vector3(2, 0, 0),
+                    "enemyStatus",
+                    "Enemigo"
+                );
+            }
+
+            loadModel(url, position, statusId, name) {
+                const statusEl = document.getElementById(statusId);
+                
+                BABYLON.SceneLoader.ImportMesh("", "", url, this.scene,
+                    (meshes) => {
+                        // Éxito
+                        statusEl.className = "status";
+                        statusEl.innerHTML = `<strong>${name}:</strong> ✅ Cargado exitosamente<br>
+                                              <small>Meshes: ${meshes.length}</small>`;
+
+                        // Posicionar modelo
+                        const root = new BABYLON.TransformNode(`${name}_root`, this.scene);
+                        root.position = position;
+
+                        meshes.forEach(mesh => {
+                            mesh.parent = root;
+                        });
+
+                        // Ajustar escala si es necesario
+                        const boundingInfo = meshes[0].getBoundingInfo();
+                        const size = boundingInfo.boundingBox.extendSize.scale(2);
+                        const maxSize = Math.max(size.x, size.y, size.z);
+                        
+                        if (maxSize > 2) {
+                            const scale = 1.5 / maxSize;
+                            root.scaling = new BABYLON.Vector3(scale, scale, scale);
+                        }
+
+                        // Animación de rotación
+                        this.scene.registerBeforeRender(() => {
+                            root.rotation.y += 0.01;
+                        });
+
+                        console.log(`✅ ${name} cargado:`, meshes);
+                    },
+                    null, // onProgress
+                    (scene, message, exception) => {
+                        // Error
+                        statusEl.className = "status error";
+                        statusEl.innerHTML = `<strong>${name}:</strong> ❌ Error al cargar<br>
+                                              <small>${message}</small>`;
+
+                        // Crear placeholder
+                        const placeholder = BABYLON.MeshBuilder.CreateCapsule(
+                            `${name}_placeholder`,
+                            { height: 1.8, radius: 0.3 },
+                            this.scene
+                        );
+                        placeholder.position = position;
+
+                        const mat = new BABYLON.StandardMaterial(`${name}_mat`, this.scene);
+                        mat.diffuseColor = name === "Jugador" 
+                            ? new BABYLON.Color3(0, 0.5, 1) 
+                            : new BABYLON.Color3(1, 0.2, 0);
+                        mat.emissiveColor = mat.diffuseColor.scale(0.3);
+                        placeholder.material = mat;
+
+                        // Label
+                        const label = BABYLON.MeshBuilder.CreatePlane(`${name}_label`, {
+                            width: 1,
+                            height: 0.3
+                        }, this.scene);
+                        label.parent = placeholder;
+                        label.position.y = 1.5;
+
+                        console.error(`❌ Error cargando ${name}:`, message, exception);
+                    }
+                );
+            }
+        }
+
+        // Iniciar test
+        window.addEventListener('DOMContentLoaded', () => {
+            new ModelTester();
+        });
+    </script>
+</body>
+</html>
