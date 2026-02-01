@@ -64,20 +64,27 @@ class Game {
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color3(0.1, 0.1, 0.15);
         
-        // Cámara tercera persona
+        // Habilitar sistema de colisiones
+        this.scene.collisionsEnabled = true;
+        
+        // Definir gravedad (opcional, para movimiento más realista)
+        this.scene.gravity = new BABYLON.Vector3(0, -0.1, 0);
+        
+        // Cámara tercera persona cercana al personaje
         this.camera = new BABYLON.ArcRotateCamera(
             "camera",
-            -Math.PI / 2,
-            Math.PI / 3,
-            10,
-            new BABYLON.Vector3(0, 0, 0),
+            -Math.PI / 2,  // Ángulo horizontal (detrás del personaje)
+            Math.PI / 4,   // Ángulo vertical (ligeramente arriba)
+            5,             // Distancia cercana al personaje
+            new BABYLON.Vector3(0, 1, 0),  // Apuntar a altura del torso
             this.scene
         );
         
-        this.camera.lowerRadiusLimit = 5;
-        this.camera.upperRadiusLimit = 15;
-        this.camera.lowerBetaLimit = 0.1;
-        this.camera.upperBetaLimit = Math.PI / 2;
+        this.camera.lowerRadiusLimit = 3;   // Mínimo muy cerca
+        this.camera.upperRadiusLimit = 8;   // Máximo no tan lejos
+        this.camera.lowerBetaLimit = 0.3;   // No mirar desde muy abajo
+        this.camera.upperBetaLimit = Math.PI / 2.5;  // No mirar desde muy arriba
+        this.camera.wheelPrecision = 50;    // Sensibilidad del zoom
     }
 
     /**
@@ -85,15 +92,19 @@ class Game {
      * Una sala rectangular con obstáculos
      */
     createLevel() {
-        // Suelo
+        // Suelo con textura
         const ground = BABYLON.MeshBuilder.CreateGround("ground", {
             width: 30,
             height: 40
         }, this.scene);
         
         const groundMat = new BABYLON.StandardMaterial("groundMat", this.scene);
-        groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35);
-        groundMat.specularColor = new BABYLON.Color3(0, 0, 0);
+        groundMat.diffuseTexture = new BABYLON.Texture("assets/textures/suelo.jpg", this.scene);
+        groundMat.diffuseTexture.uScale = 6; // Repetir textura
+        groundMat.diffuseTexture.vScale = 8;
+        // Configuración metálica
+        groundMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.7); // Brillo metálico azulado
+        groundMat.specularPower = 64; // Reflejo concentrado
         ground.material = groundMat;
         ground.checkCollisions = true;
         
@@ -111,17 +122,23 @@ class Game {
     }
 
     /**
-     * Crea las paredes de la sala
+     * Crea las paredes de la sala con textura
      */
     createWalls() {
         const wallMat = new BABYLON.StandardMaterial("wallMat", this.scene);
-        wallMat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.45);
+        wallMat.diffuseTexture = new BABYLON.Texture("assets/textures/pared.jpg", this.scene);
+        wallMat.diffuseTexture.uScale = 4; // Repetir textura horizontalmente
+        wallMat.diffuseTexture.vScale = 2; // Repetir textura verticalmente
+        // Configuración metálica
+        wallMat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.6); // Brillo metálico
+        wallMat.specularPower = 48; // Reflejo concentrado
         
+        // Paredes más altas (8 unidades de altura)
         const wallPositions = [
-            { pos: new BABYLON.Vector3(0, 2, -20), size: new BABYLON.Vector3(30, 4, 0.5) },  // Norte
-            { pos: new BABYLON.Vector3(0, 2, 20), size: new BABYLON.Vector3(30, 4, 0.5) },   // Sur
-            { pos: new BABYLON.Vector3(-15, 2, 0), size: new BABYLON.Vector3(0.5, 4, 40) },  // Oeste
-            { pos: new BABYLON.Vector3(15, 2, 0), size: new BABYLON.Vector3(0.5, 4, 40) }    // Este
+            { pos: new BABYLON.Vector3(0, 4, -20), size: new BABYLON.Vector3(30, 8, 0.5) },  // Norte
+            { pos: new BABYLON.Vector3(0, 4, 20), size: new BABYLON.Vector3(30, 8, 0.5) },   // Sur
+            { pos: new BABYLON.Vector3(-15, 4, 0), size: new BABYLON.Vector3(0.5, 8, 40) },  // Oeste
+            { pos: new BABYLON.Vector3(15, 4, 0), size: new BABYLON.Vector3(0.5, 8, 40) }    // Este
         ];
         
         wallPositions.forEach((data, i) => {
@@ -138,11 +155,14 @@ class Game {
     }
 
     /**
-     * Crea obstáculos en el nivel
+     * Crea obstáculos en el nivel con textura
      */
     createObstacles() {
         const boxMat = new BABYLON.StandardMaterial("boxMat", this.scene);
-        boxMat.diffuseColor = new BABYLON.Color3(0.5, 0.4, 0.3);
+        boxMat.diffuseTexture = new BABYLON.Texture("assets/textures/cajas.jpg", this.scene);
+        // Configuración metálica
+        boxMat.specularColor = new BABYLON.Color3(0.7, 0.7, 0.8); // Brillo metálico fuerte
+        boxMat.specularPower = 80; // Reflejo muy concentrado (más metálico)
         
         const obstacles = [
             { pos: new BABYLON.Vector3(-5, 1, 5), size: new BABYLON.Vector3(2, 2, 2) },
@@ -223,22 +243,32 @@ class Game {
 
     /**
      * Configura la iluminación (Épica 05)
+     * Ambiente muy oscuro para gameplay de sigilo
      */
     setupLighting() {
-        // Luz ambiental tenue
+        // Luz ambiental muy baja para ambiente oscuro
         const ambient = new BABYLON.HemisphericLight(
             "ambient",
             new BABYLON.Vector3(0, 1, 0),
             this.scene
         );
-        ambient.intensity = 0.3;
+        ambient.intensity = 0.15;
+        ambient.groundColor = new BABYLON.Color3(0.05, 0.05, 0.08);
         
-        // Luces puntuales (focos en el techo)
+        // Luz direccional muy suave
+        const directional = new BABYLON.DirectionalLight(
+            "directional",
+            new BABYLON.Vector3(-0.5, -1, 0.5),
+            this.scene
+        );
+        directional.intensity = 0.1;
+        
+        // Luces puntuales limitadas (máximo 4 para evitar errores de shader)
         const lightPositions = [
-            new BABYLON.Vector3(-5, 4, 0),
-            new BABYLON.Vector3(5, 4, 0),
-            new BABYLON.Vector3(-5, 4, 10),
-            new BABYLON.Vector3(5, 4, 10)
+            new BABYLON.Vector3(0, 5, -5),
+            new BABYLON.Vector3(0, 5, 10),
+            new BABYLON.Vector3(-8, 5, 5),
+            new BABYLON.Vector3(8, 5, 5)
         ];
         
         lightPositions.forEach((pos, i) => {
@@ -246,15 +276,7 @@ class Game {
             light.intensity = 0.5;
             light.range = 10;
             
-            // Representación visual
-            const bulb = BABYLON.MeshBuilder.CreateSphere(`bulb_${i}`, {
-                diameter: 0.3
-            }, this.scene);
-            bulb.position = pos;
-            
-            const bulbMat = new BABYLON.StandardMaterial(`bulbMat_${i}`, this.scene);
-            bulbMat.emissiveColor = new BABYLON.Color3(1, 1, 0.8);
-            bulb.material = bulbMat;
+            // Luz invisible (sin representación visual)
         });
     }
 
@@ -267,18 +289,24 @@ class Game {
     }
 
     /**
-     * Crea los enemigos con rutas de patrullaje
+     * Crea los enemigos con rutas de patrullaje usando EnemyFactory
+     * 
+     * Tipos disponibles:
+     * - NINJA: Visión corta (8) y ancha (90°), rápido, detecta en 3s
+     * - GUARD: Visión media (15) y media (60°), lento, detecta en 5s
+     * - SNIPER: Visión larga (25) y estrecha (30°), estático, detecta en 2s
      */
     createEnemies() {
-        // Guardia 1 - Patrulla horizontal
+        // Enemigo 1: NINJA (Gray Fox) - Patrulla horizontal
+        // Visión corta pero ancha, muy rápido
         const patrol1 = [
-            new BABYLON.Vector3(-8, 0, 5),
-            new BABYLON.Vector3(8, 0, 5),
-            new BABYLON.Vector3(8, 0, 12),
-            new BABYLON.Vector3(-8, 0, 12)
+            new BABYLON.Vector3(-10, 1, 5),
+            new BABYLON.Vector3(10, 1, 5),
+            new BABYLON.Vector3(10, 1, 12),
+            new BABYLON.Vector3(-10, 1, 12)
         ];
         
-        const enemy1 = new EnemyAI(
+        const enemy1 = EnemyFactory.createNinja(
             this.scene,
             patrol1[0],
             patrol1,
@@ -286,19 +314,24 @@ class Game {
         );
         this.enemies.push(enemy1);
         
-        // Guardia 2 - Patrulla vertical
+        // Enemigo 2: GUARD (Guardia estándar) - Patrulla vertical
+        // Visión media y equilibrada
         const patrol2 = [
-            new BABYLON.Vector3(0, 0, 2),
-            new BABYLON.Vector3(0, 0, 15)
+            new BABYLON.Vector3(0, 1, 0),
+            new BABYLON.Vector3(0, 1, 15)
         ];
         
-        const enemy2 = new EnemyAI(
+        const enemy2 = EnemyFactory.createGuard(
             this.scene,
             patrol2[0],
             patrol2,
             2
         );
         this.enemies.push(enemy2);
+        
+        console.log('Enemigos creados con EnemyFactory:');
+        console.log('- Enemigo 1: NINJA (Gray Fox) - Visión: 8m, Ángulo: 90°, Detección: 3s');
+        console.log('- Enemigo 2: GUARD - Visión: 15m, Ángulo: 60°, Detección: 5s');
     }
 
     /**
@@ -328,6 +361,9 @@ class Game {
         
         // Actualizar jugador
         this.player.update();
+        
+        // Cámara sigue al jugador (tercera persona)
+        this.camera.target = this.player.position.add(new BABYLON.Vector3(0, 1, 0));
         
         // Actualizar enemigos
         this.enemies.forEach(enemy => {
@@ -411,18 +447,40 @@ class Game {
      * Verifica condiciones de victoria/derrota
      */
     checkGameConditions() {
-        // Victoria: llegar al objetivo sin ser detectado (o en infiltración)
+        if (this.gameState !== 'PLAYING') return;
+        
+        // Victoria: llegar al objetivo (sin importar el estado)
         if (this.player.checkGoalReached(this.goalPosition, 3)) {
-            if (this.stealthSystem.getState() === 'INFILTRATION' || 
-                this.stealthSystem.getState() === 'CAUTION') {
-                this.showGameMessage('MISIÓN COMPLETADA', 'Has infiltrado la sala sin ser detectado.', 'success');
-                this.gameState = 'WIN';
+            const state = this.stealthSystem.getState();
+            let message = 'Has llegado al objetivo.';
+            
+            // Mensaje diferente según el estado
+            if (state === 'INFILTRATION') {
+                message = '¡Infiltración perfecta! Sin ser detectado.';
+            } else if (state === 'CAUTION') {
+                message = 'Has llegado con precaución. Buen trabajo.';
+            } else if (state === 'EVASION') {
+                message = '¡Escapaste justo a tiempo!';
+            } else if (state === 'ALERT') {
+                message = '¡Lo lograste bajo presión!';
+            }
+            
+            this.showGameMessage('MISIÓN COMPLETADA', message, 'success');
+            this.gameState = 'WIN';
+            return;
+        }
+        
+        // Derrota: ser visto por 5 segundos completos
+        for (let enemy of this.enemies) {
+            if (enemy.isPlayerFullyDetected()) {
+                this.showGameMessage('¡DESCUBIERTO!', 'Fuiste visto por demasiado tiempo. Los guardias te han capturado.', 'failure');
+                this.gameState = 'LOSE';
+                return;
             }
         }
         
-        // Derrota: estar en alerta por mucho tiempo
+        // Derrota: enemigo muy cerca en alerta
         if (this.stealthSystem.getState() === 'ALERT') {
-            // Verificar si algún enemigo está muy cerca
             for (let enemy of this.enemies) {
                 const distance = BABYLON.Vector3.Distance(this.player.position, enemy.position);
                 if (distance < 1.5) {

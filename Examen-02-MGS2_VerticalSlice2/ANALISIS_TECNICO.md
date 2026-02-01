@@ -246,6 +246,155 @@ Simplificamos la "comunicación" mediante un sistema centralizado.
 
 ---
 
+## 🏭 Patrón de Diseño Factory para Enemigos
+
+### Problema Identificado
+
+Al desarrollar el sistema de enemigos, encontramos que diferentes tipos de enemigos comparten la misma lógica base pero con **configuraciones distintas**:
+
+- **Ninja (Gray Fox)**: Visión corta pero amplia, muy rápido, detecta rápidamente
+- **Guard (Guardia estándar)**: Visión media y equilibrada, velocidad normal
+- **Sniper (Francotirador)**: Visión larga pero estrecha, estático, detecta muy rápido
+
+Crear enemigos manualmente con todos estos parámetros resultaba en código repetitivo y propenso a errores.
+
+### Solución: Factory Pattern + Builder Pattern
+
+Implementamos el archivo `EnemyFactory.js` que combina dos patrones:
+
+#### 1. Factory Method: Creación Simplificada
+
+```javascript
+// EnemyFactory.js
+class EnemyFactory {
+    static createNinja(scene, position, patrolPoints, id) {
+        const config = { ...EnemyPresets.NINJA };
+        config.id = id || 'ninja_' + Date.now();
+        config.position = position;
+        config.patrolPoints = patrolPoints;
+        return new EnemyAI(scene, config);
+    }
+    
+    static createGuard(scene, position, patrolPoints, id) {
+        const config = { ...EnemyPresets.GUARD };
+        // ... configuración
+        return new EnemyAI(scene, config);
+    }
+    
+    static createSniper(scene, position, patrolPoints, id) {
+        const config = { ...EnemyPresets.SNIPER };
+        // ... configuración
+        return new EnemyAI(scene, config);
+    }
+}
+```
+
+#### 2. Presets: Configuraciones Predefinidas
+
+```javascript
+// EnemyFactory.js
+const EnemyPresets = {
+    NINJA: {
+        viewDistance: 3,      // Visión corta
+        viewAngle: 45,        // Ángulo amplio
+        patrolSpeed: 0.05,    // Muy rápido
+        detectionTime: 3,     // Detecta en 3 segundos
+        modelType: 'gray_fox' // Modelo visual
+    },
+    GUARD: {
+        viewDistance: 5,
+        viewAngle: 35,
+        patrolSpeed: 0.03,
+        detectionTime: 5,
+        modelType: 'enemy'
+    },
+    SNIPER: {
+        viewDistance: 10,     // Visión larga
+        viewAngle: 15,        // Ángulo muy estrecho
+        patrolSpeed: 0,       // Estático
+        detectionTime: 2,     // Detecta muy rápido
+        modelType: 'enemy'
+    }
+};
+```
+
+#### 3. Builder Pattern: Configuración Flexible
+
+```javascript
+// EnemyFactory.js
+class EnemyBuilder {
+    constructor(scene) {
+        this.scene = scene;
+        this.config = { ...EnemyPresets.GUARD }; // Base por defecto
+    }
+    
+    withVision(distance, angle) {
+        this.config.viewDistance = distance;
+        this.config.viewAngle = angle;
+        return this; // Permite encadenamiento
+    }
+    
+    withSpeed(speed) {
+        this.config.patrolSpeed = speed;
+        return this;
+    }
+    
+    build() {
+        return new EnemyAI(this.scene, this.config);
+    }
+}
+
+// Uso con método fluido (fluent interface)
+const customEnemy = new EnemyBuilder(scene)
+    .withVision(8, 60)
+    .withSpeed(0.04)
+    .withPosition(new BABYLON.Vector3(5, 1, 10))
+    .build();
+```
+
+### Uso en el Juego
+
+```javascript
+// main.js - createEnemies()
+createEnemies() {
+    // Enemigo 1: NINJA (Gray Fox)
+    const enemy1 = EnemyFactory.createNinja(
+        this.scene,
+        new BABYLON.Vector3(-10, 1, 5),
+        patrolPoints1,
+        1
+    );
+    
+    // Enemigo 2: GUARD estándar
+    const enemy2 = EnemyFactory.createGuard(
+        this.scene,
+        new BABYLON.Vector3(0, 1, 0),
+        patrolPoints2,
+        2
+    );
+    
+    this.enemies.push(enemy1, enemy2);
+}
+```
+
+### Beneficios del Patrón Factory
+
+| Beneficio | Descripción |
+|-----------|-------------|
+| **Encapsulación** | La lógica de creación está centralizada en un solo lugar |
+| **Consistencia** | Los presets garantizan configuraciones válidas y balanceadas |
+| **Extensibilidad** | Añadir un nuevo tipo de enemigo solo requiere un nuevo preset |
+| **Legibilidad** | `createNinja()` es más claro que configurar 10 parámetros |
+| **Mantenibilidad** | Cambiar un tipo de enemigo afecta solo el preset, no todo el código |
+
+### Conexión con GDD
+
+> "El juego contará con aproximadamente 300 enemigos simultáneos" - GDD Página 3
+
+Aunque nuestro vertical slice usa solo 2 enemigos, el patrón Factory permite escalar fácilmente a cientos de enemigos con diferentes configuraciones, cumpliendo con la visión del documento de diseño.
+
+---
+
 ## 📈 Métricas de Validación
 
 ### ¿Cómo sabemos que el Vertical Slice funciona?
@@ -311,9 +460,11 @@ Nuestra implementación responde **SÍ** a las tres preguntas, cumpliendo el obj
 
 ### Patrones de Diseño Utilizados
 
-1. **State Pattern**: Implementado en `StealthSystem` y `EnemyAI`
-2. **Component Pattern**: Separación PlayerController / StealthSystem / EnemyAI
-3. **Mediator Pattern**: StealthSystem coordina entre jugador y enemigos
+1. **Factory Pattern**: Implementado en `EnemyFactory.js` para crear diferentes tipos de enemigos (NINJA, GUARD, SNIPER) con configuraciones predefinidas
+2. **Builder Pattern**: Clase `EnemyBuilder` permite configuración fluida de enemigos personalizados
+3. **State Pattern**: Implementado en `StealthSystem` y `EnemyAI` para manejar estados del juego
+4. **Component Pattern**: Separación PlayerController / StealthSystem / EnemyAI
+5. **Mediator Pattern**: StealthSystem coordina entre jugador y enemigos
 
 ### Bibliotecas y Recursos
 

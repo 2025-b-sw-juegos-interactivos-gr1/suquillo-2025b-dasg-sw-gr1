@@ -20,6 +20,7 @@ MGS2_VerticalSlice/
     ├── main.js                # Sistema principal del juego
     ├── PlayerController.js    # Control del jugador (Épica 01)
     ├── EnemyAI.js             # Inteligencia artificial (Épica 03)
+    ├── EnemyFactory.js        # Patrón Factory para crear enemigos
     └── StealthSystem.js       # Sistema de stealth (Épicas 02 y 05)
 ```
 
@@ -100,9 +101,10 @@ python -m http.server 8000
 
 3. **Épica 03 - IA coordinada** ✅
    - Patrullaje por rutas
-   - Detección por cono de visión
+   - Detección por cono de visión con timer progresivo
    - Persecución del jugador
    - Estados de IA coordinados
+   - **Patrón Factory**: 3 tipos de enemigos (NINJA, GUARD, SNIPER)
 
 4. **Épica 05 - Iluminación y sombras** ✅
    - Zonas de sombra físicas
@@ -163,7 +165,13 @@ python -m http.server 8000
 - **Babylon.js 6.0**: Motor 3D WebGL
 - **JavaScript ES6**: Lógica del juego
 - **HTML5/CSS3**: Interfaz y HUD
-- **Patrón MVC**: Arquitectura del código
+- **Modelos GLTF/GLB**: Solid Snake, Gray Fox, enemigos
+
+### Patrones de Diseño Implementados:
+- **Factory Pattern**: Creación de tipos de enemigos (NINJA, GUARD, SNIPER)
+- **Builder Pattern**: Configuración fluida de enemigos personalizados
+- **State Pattern**: Estados del juego y IA
+- **Mediator Pattern**: Coordinación entre sistemas
 
 ---
 
@@ -281,16 +289,20 @@ Has hecho un excelente trabajo implementando un Vertical Slice profesional. Conf
 ✅ MGS2_VerticalSlice.zip       (Todo el proyecto)
    ├── index.html               (Ejecutable principal)
    ├── README.md                (Documentación)
-   ├── ANALISIS_TECNICO.md      (Análisis GDD)
+   ├── ANALISIS_TECNICO.md      (Análisis GDD + Patrones de Diseño)
    ├── GUIA_VIDEO.md            (Guía para video)
+   ├── assets/                  (Modelos y texturas)
+   │   ├── models/              (Solid Snake, Gray Fox, enemigos)
+   │   └── textures/            (Suelo, paredes, cajas)
    └── src/                     (Código fuente)
        ├── main.js
        ├── PlayerController.js
        ├── EnemyAI.js
+       ├── EnemyFactory.js      (Patrón Factory)
        └── StealthSystem.js
 ```
 
-**Total**: 8 archivos, ~1,500 líneas de código, 100% funcional.
+**Total**: 10+ archivos, ~2,000 líneas de código, 100% funcional.
 
 ---
 

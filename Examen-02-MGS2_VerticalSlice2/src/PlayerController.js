@@ -40,12 +40,24 @@ class PlayerController {
      * Crea la representación visual del jugador
      */
     createPlayerMesh() {
-        // Crear un contenedor para el modelo
-        this.mesh = new BABYLON.TransformNode("player", this.scene);
-        this.mesh.position = this.position;
-        this.mesh.checkCollisions = true;
+        // Crear collider como mesh principal para colisiones
+        this.collider = BABYLON.MeshBuilder.CreateCapsule("playerCollider", {
+            height: 1.8,
+            radius: 0.4
+        }, this.scene);
+        this.collider.position = this.position.clone();
+        this.collider.isVisible = false;
+        this.collider.checkCollisions = true;
+        this.collider.ellipsoid = new BABYLON.Vector3(0.4, 0.9, 0.4);
         
-        // Intentar cargar modelo GLB
+        // Crear contenedor para el modelo visual como hijo del collider
+        this.mesh = new BABYLON.TransformNode("player", this.scene);
+        this.mesh.parent = this.collider;
+        
+        // Habilitar colisiones en la escena
+        this.scene.collisionsEnabled = true;
+        
+        // Intentar cargar modelo GLTF de Solid Snake
         this.loadPlayerModel();
         
         // Mientras tanto, crear placeholder
@@ -79,37 +91,41 @@ class PlayerController {
         direction.position.z = 0.5;
         direction.rotation.x = Math.PI / 2;
         direction.material = playerMat;
+        this.directionMesh = direction;
     }
     
     /**
-     * Carga el modelo GLB del jugador
+     * Carga el modelo GLTF de Solid Snake
      */
     loadPlayerModel() {
-        // Puedes cambiar esta URL por tu propio modelo
-        const modelURL = "assets/models/player.glb";
+        // Modelo de Solid Snake (Twin Snakes)
+        const modelPath = "assets/models/metal_gear_solid_the_twin_snakes_solid_snake/";
+        const modelFile = "scene.gltf";
         
-        BABYLON.SceneLoader.ImportMesh("", "", modelURL, this.scene, 
+        BABYLON.SceneLoader.ImportMesh("", modelPath, modelFile, this.scene, 
             (meshes) => {
-                console.log("Modelo del jugador cargado exitosamente");
+                console.log("Modelo de Solid Snake cargado exitosamente");
                 
-                // Ocultar placeholder
+                // Ocultar placeholder y dirección
                 if (this.placeholder) {
                     this.placeholder.isVisible = false;
                 }
+                if (this.directionMesh) {
+                    this.directionMesh.isVisible = false;
+                }
                 
-                // Configurar modelo
-                meshes.forEach(mesh => {
-                    mesh.parent = this.mesh;
-                    mesh.scaling = new BABYLON.Vector3(0.002, 0.002, 0.002);
-                    mesh.position.y = -0.9; // Ajustar al nivel del suelo
-                    mesh.rotation.y = Math.PI;
-                });
+                // Configurar modelo - ajustar escala según el modelo GLTF
+                // El modelo de Sketchfab viene en escala grande
+                const rootMesh = meshes[0];
+                rootMesh.parent = this.mesh;
+                rootMesh.scaling = new BABYLON.Vector3(0.001, 0.001, 0.001);
+                rootMesh.position.y = 0.08; // Al nivel del suelo
                 
                 this.modelMeshes = meshes;
             },
             null, // onProgress
             (scene, message) => {
-                console.log("No se pudo cargar el modelo del jugador, usando placeholder");
+                console.log("No se pudo cargar el modelo de Solid Snake, usando placeholder");
                 console.log(message);
             }
         );
@@ -161,13 +177,11 @@ class PlayerController {
     toggleCrouch() {
         this.isCrouching = !this.isCrouching;
         
-        // Ajustar altura del mesh
+        // Ajustar altura del collider y modelo
         if (this.isCrouching) {
-            this.mesh.scaling.y = 0.6;
-            this.mesh.position.y = 0.6;
+            this.collider.scaling.y = 0.6;
         } else {
-            this.mesh.scaling.y = 1.0;
-            this.mesh.position.y = 1.0;
+            this.collider.scaling.y = 1.0;
         }
     }
 
@@ -221,23 +235,23 @@ class PlayerController {
             const movement = forward.scale(moveVector.z).add(right.scale(moveVector.x));
             movement.scaleInPlace(speed);
             
-            // Aplicar movimiento
-            this.mesh.position.addInPlace(movement);
+            // Aplicar movimiento CON COLISIONES
+            this.collider.moveWithCollisions(movement);
             
             // Rotar jugador hacia dirección de movimiento
             if (movement.length() > 0) {
-                const targetRotation = Math.atan2(movement.x, movement.z);
-                this.mesh.rotation.y = targetRotation;
+                const targetRotation = Math.atan2(movement.x, movement.z) + Math.PI;
+                this.collider.rotation.y = targetRotation;
             }
         }
         
-        // Sincronizar cámara con jugador
-        this.camera.position.x = this.mesh.position.x;
-        this.camera.position.z = this.mesh.position.z - 3;
-        this.camera.position.y = this.mesh.position.y + 2;
+        // Sincronizar cámara con jugador (usar collider que es el que se mueve)
+        this.camera.position.x = this.collider.position.x;
+        this.camera.position.z = this.collider.position.z - 3;
+        this.camera.position.y = this.collider.position.y + 2;
         
         // Actualizar posición
-        this.position = this.mesh.position.clone();
+        this.position = this.collider.position.clone();
     }
 
     /**
@@ -257,9 +271,9 @@ class PlayerController {
      */
     getForwardDirection() {
         const forward = new BABYLON.Vector3(
-            Math.sin(this.mesh.rotation.y),
+            Math.sin(this.collider.rotation.y),
             0,
-            Math.cos(this.mesh.rotation.y)
+            Math.cos(this.collider.rotation.y)
         );
         return forward;
     }
@@ -268,16 +282,16 @@ class PlayerController {
      * Reset del jugador
      */
     reset(startPosition) {
-        this.mesh.position = startPosition.clone();
+        this.collider.position = startPosition.clone();
         this.position = startPosition.clone();
         this.isCrouching = false;
         this.isRunning = false;
         this.isMoving = false;
         this.hasReachedGoal = false;
         
-        if (this.mesh.scaling.y !== 1.0) {
-            this.mesh.scaling.y = 1.0;
-            this.mesh.position.y = 1.0;
+        if (this.collider.scaling.y !== 1.0) {
+            this.collider.scaling.y = 1.0;
+            this.collider.position.y = 1.0;
         }
     }
 

@@ -18,21 +18,27 @@ Este es un **Vertical Slice** (Prototipo Jugable) basado en el Game Design Docum
 ## 📦 Estructura del Proyecto
 
 ```
-Examen-02/
+Examen-02-MGS2_VerticalSlice2/
 ├── index.html              # Página principal con canvas y HUD
 ├── test_models.html        # Herramienta de prueba para modelos GLB
 ├── src/
-│   ├── main.js            # Inicialización y game loop principal
+│   ├── main.js             # Inicialización y game loop principal
 │   ├── PlayerController.js # Control del jugador (Épica 01)
 │   ├── EnemyAI.js          # Inteligencia artificial enemiga (Épica 03)
+│   ├── EnemyFactory.js     # 🏭 Patrón Factory para crear tipos de enemigos
 │   └── StealthSystem.js    # Sistema de estados de alerta (Épica 02 y 05)
 ├── assets/
-│   └── models/            # Modelos 3D en formato GLB (opcional)
-│       ├── player.glb     # Modelo del jugador
-│       └── enemy.glb      # Modelo del enemigo
-├── README.md              # Este archivo
-├── GUIA_MODELOS_GLB.md    # Guía completa para usar modelos 3D
-└── ANALISIS_TECNICO.md    # Análisis de implementación
+│   ├── models/             # Modelos 3D en formato GLTF/GLB
+│   │   ├── metal_gear_solid_the_twin_snakes_solid_snake/  # Jugador
+│   │   ├── ninja_gray_fox/  # Enemigo tipo NINJA
+│   │   └── enemy.glb        # Enemigo tipo GUARD
+│   └── textures/            # Texturas del escenario
+│       ├── suelo.jpg        # Textura del piso
+│       ├── pared.jpg        # Textura de paredes
+│       └── cajas.jpg        # Textura de obstáculos
+├── README.md               # Este archivo
+├── RESUMEN_EJECUTIVO.md    # Resumen rápido del proyecto
+└── ANALISIS_TECNICO.md     # Análisis de implementación + Patrones de Diseño
 ```
 
 ## 🎨 Modelos 3D (Opcional pero Recomendado)
@@ -82,11 +88,17 @@ El proyecto está preparado para usar modelos GLB 3D. Si no los tienes, el juego
 
 ## 🎯 Cómo Ganar
 
-1. **Infiltrarse** en la sala sin ser detectado
-2. **Usar las zonas oscuras** (círculos negros en el suelo) para reducir tu visibilidad
-3. **Observar los conos de visión** de los enemigos (amarillos)
-4. **Llegar a la puerta verde** al final de la sala
-5. **Mantener el estado "INFILTRACIÓN"** o máximo "PRECAUCIÓN"
+1. **Infiltrarse** en la sala evitando ser visto
+2. **Usar las zonas de sombra** para ocultarte de los enemigos
+3. **Observar los conos de visión** de los enemigos (amarillo = seguro)
+4. **Llegar a la zona verde** al final de la sala
+5. **Puedes ganar en cualquier estado** - incluso en EVASION o ALERT
+
+**Mensajes de victoria según tu estilo:**
+- INFILTRATION: "¡Infiltración perfecta!"
+- CAUTION: "Has llegado con precaución"
+- EVASION: "¡Escapaste justo a tiempo!"
+- ALERT: "¡Lo lograste bajo presión!"
 
 ## ❌ Cómo Perder
 
@@ -94,14 +106,17 @@ El proyecto está preparado para usar modelos GLB 3D. Si no los tienes, el juego
 
 ## 🎨 Elementos Visuales
 
-- **Jugador**: Cápsula azul con cono de dirección
-- **Enemigos**: Cápsulas rojas con conos de visión amarillos
-- **Zonas de sombra**: Círculos oscuros en el suelo (reducen detección)
-- **Objetivo**: Puerta verde pulsante
-- **Indicadores de alerta**: Círculos sobre enemigos
-  - 🔴 Rojo = ALERTA (te vieron)
-  - 🟠 Naranja = BÚSQUEDA (buscando)
-  - 🟡 Amarillo = PRECAUCIÓN (sospechan)
+- **Jugador**: Modelo 3D de Solid Snake (Twin Snakes)
+- **Enemigos**: 
+  - NINJA: Modelo de Gray Fox con visión corta y amplia
+  - GUARD: Modelo de guardia con visión equilibrada
+- **Zonas de sombra**: Áreas oscuras que ocultan al jugador
+- **Objetivo**: Zona verde pulsante (meta)
+- **Escenario**: Texturas metálicas en suelo, paredes y cajas
+- **Conos de visión dinámicos**:
+  - 🟡 Amarillo = Patrullando (normal)
+  - 🟠 Naranja = Detectando (timer en progreso)
+  - 🔴 Rojo = ¡Detectado! (game over inminente)
 
 ## 📊 Estados del Sistema
 
@@ -146,6 +161,37 @@ Este vertical slice implementa específicamente:
 - ✅ **Épica 05**: Sistema de iluminación y sombras que afecta gameplay
 
 Ver `ANALISIS_TECNICO.md` para detalles sobre decisiones de diseño.
+
+---
+
+## 🏭 Patrones de Diseño Implementados
+
+### Factory Pattern - Creación de Enemigos
+
+El archivo `EnemyFactory.js` implementa el patrón Factory para crear diferentes tipos de enemigos:
+
+| Tipo | Visión | Ángulo | Velocidad | Detección | Modelo |
+|------|--------|--------|-----------|-----------|--------|
+| **NINJA** | 3m (corta) | 45° (amplia) | 0.05 (rápido) | 3s | Gray Fox |
+| **GUARD** | 5m (media) | 35° (media) | 0.03 (normal) | 5s | enemy.glb |
+| **SNIPER** | 10m (larga) | 15° (estrecha) | 0 (estático) | 2s | enemy.glb |
+
+```javascript
+// Uso simple con Factory
+const ninja = EnemyFactory.createNinja(scene, position, patrolPoints, id);
+const guard = EnemyFactory.createGuard(scene, position, patrolPoints, id);
+
+// Uso avanzado con Builder
+const custom = new EnemyBuilder(scene)
+    .withVision(8, 60)
+    .withSpeed(0.04)
+    .build();
+```
+
+### Otros Patrones:
+- **State Pattern**: Estados del juego (INFILTRATION, ALERT, EVASION, CAUTION)
+- **Mediator Pattern**: StealthSystem coordina jugador y enemigos
+- **Component Pattern**: Separación modular de responsabilidades
 
 ## 🐛 Problemas Conocidos
 
